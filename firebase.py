@@ -90,34 +90,71 @@ def get_orderBy(orderBy, response):
         res = response.sort(order_by.strip('"'))
         return list(res), response
 
-def startAt_endAt_check(startAt, endAt, orderBy, response):
+def startAt_endAt_key(startAt, endAt, r, key, dict_record):
+    if not key: ## /.json case
+        if startAt and endAt:
+            if startAt.isnumeric() and endAt.isnumeric():
+                if int(r['_id']) >= int(startAt) and int(r['_id']) <= int(endAt): dict_record[r['_id']] = r
+            else:
+                if r['_id'] >= startAt and r['_id'] <= endAt: dict_record[r['_id']] = r
+        elif startAt:
+            if startAt.isnumeric():
+                if int(r['_id']) >= int(startAt): dict_record[r['_id']] = r
+            else:
+                if r['_id'] >= startAt: dict_record[r['_id']] = r
+        else:
+            if endAt.isnumeric():
+                if int(r['_id']) <= int(endAt): dict_record[r['_id']] = r
+            else:
+                if r['_id'] <= endAt: dict_record[r['_id']] = r
+    else:
+        for d in r:
+            if startAt and endAt:
+                if d >= startAt and d <= endAt: dict_record[d] = r[d]
+            elif startAt:
+                if d >= startAt: dict_record[d] = r[d]
+            else:
+                if d <= endAt: dict_record[d] = r[d]
+    return dict_record
+
+def startAt_endAt_check(startAt, endAt, orderBy, response, key):
+    orderBy = orderBy.strip('"\'')
+    startAt = startAt.strip('"\'') if startAt else None
+    endAt = endAt.strip('"\'') if endAt else None
+    startAt = startAt.strip('"\'') if startAt and startAt.isnumeric() else startAt
+    endAt = endAt.strip('"\'') if endAt and endAt.isnumeric() else endAt
     startAt_record = []
     for r in response:
         dict_record = {}
-        if orderBy == '"$key"' or orderBy == "'$key'" or orderBy == '"$value"' or orderBy == "'$value'":
-            for d in r:
-                if orderBy == '"$key"' or orderBy == "'$key'":
-                    if startAt and endAt:
-                        if d >= startAt and d <= endAt: dict_record[d] = r[d]
-                        elif startAt:
-                            if d >= startAt: dict_record[d] = r[d]
-                        else:
-                            if d <= endAt: dict_record[d] = r[d]
-                elif orderBy == '"$value"' or orderBy == "'$value'":
+        if orderBy == '$key' or orderBy == '$value':
+            if orderBy == '$key':
+                dict_record = startAt_endAt_key(startAt, endAt, r, key, dict_record)
+            elif orderBy == '$value':
+                for d in r:
                     if startAt and endAt:
                         if r[d] >= startAt and r[d] <= endAt: dict_record[d] = r[d]
-                        elif startAt:
-                            if r[d] >= startAt: dict_record[d] = r[d]
-                        else:
-                            if r[d] <= endAt: dict_record[d] = r[d]
+                    elif startAt:
+                        startAt = startAt.strip('"\'')
+                        if r[d] >= startAt: dict_record[d] = r[d]
+                    else:
+                        endAt = endAt.strip('"\'')
+                        if r[d] <= endAt: dict_record[d] = r[d]
         else:
             if orderBy in r:
-                if startAt and endAt:
-                    if r[orderBy] >= startAt and r[orderBy] <= endAt: dict_record[orderBy] = r[orderBy]
-                elif startAt:
-                    if r[orderBy] >= startAt: dict_record[orderBy] = r[orderBy]
+                if not key: ## ./json case
+                    if startAt and endAt:
+                        if r[orderBy] >= startAt and r[orderBy] <= endAt: dict_record = r
+                    elif startAt:
+                        if r[orderBy] >= startAt: dict_record = r
+                    else:
+                        if r[orderBy] <= endAt: dict_record = r
                 else:
-                    if r[orderBy] <= endAt: dict_record[orderBy] = r[orderBy]
+                    if startAt and endAt:
+                        if r[orderBy] >= startAt and r[orderBy] <= endAt: dict_record[orderBy] = r[orderBy]
+                    elif startAt:
+                        if r[orderBy] >= startAt: dict_record[orderBy] = r[orderBy]
+                    else:
+                        if r[orderBy] <= endAt: dict_record[orderBy] = r[orderBy]
         if dict_record: startAt_record.append(dict_record)
     return startAt_record
 
@@ -216,7 +253,7 @@ def check_filter_options(orderBy, limitToFirst, limitToLast, startAt, endAt, equ
         if limitToLast:
             sorted_order = limitToLast_check(limitToLast, sorted_order)
         if (startAt or endAt) and sorted_order:
-            record = startAt_endAt_check(startAt, endAt, orderBy, sorted_order)
+            record = startAt_endAt_check(startAt, endAt, orderBy, sorted_order, key)
             sorted_order = record.copy()
         if equalTo and sorted_order:
             record = equalTo_check(equalTo, orderBy, sorted_order, key)
