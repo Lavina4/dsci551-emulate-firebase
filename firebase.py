@@ -85,7 +85,7 @@ def get_orderBy(orderBy, response):
         else:
             response = OrderedDict([(path,response[path])]) if path else response
         return [response], [res]
-    else:
+    else: ## order by child
         order_by = '.'.join(orderBy.split('/'))
         res = response.sort(order_by.strip('"'))
         return list(res), response
@@ -124,6 +124,7 @@ def startAt_endAt_check(startAt, endAt, orderBy, response):
 def equalTo_check(equalTo, orderBy, response, key=None):
     equalTo = equalTo.strip('"\'')
     orderBy = orderBy.strip('"\'')
+    if equalTo.isnumeric(): equalTo = int(equalTo)
     equalTo_record = []
     for r in response:
         dict_record = {}
@@ -141,8 +142,13 @@ def equalTo_check(equalTo, orderBy, response, key=None):
                         if r[d] == equalTo: dict_record[d] = r[d]
         else:
             orderBy = orderBy.strip('"\'')
-            if orderBy in r:
-                if r[orderBy] == equalTo: dict_record[orderBy] = r[orderBy]
+            for k in r:
+                if isinstance(r[k], dict):
+                    if orderBy in r[k]:
+                        if r[k][orderBy] == equalTo: dict_record[k] = r[k]
+                elif not key: ## /.json case
+                    if orderBy == k:
+                        if r[k] == equalTo: dict_record[r['_id']] = r
         if dict_record: equalTo_record.append(dict_record)
     return equalTo_record
 
