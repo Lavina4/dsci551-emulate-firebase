@@ -319,6 +319,58 @@ def catch_all_get(myPath):
         resp = None
     return jsonify(resp) ## sorts the returned json on keys: this is same as the default behaviour of Firebase
 
+@app.route('/', defaults={'myPath': ''}, methods=['PUT'])
+@app.route('/<path:myPath>', methods=['PUT'])
+def put_data(myPath):
+    app.json.sort_keys = True
+    paths = myPath.split('/')
+    if not paths[-1].endswith('.json'): 
+        return ''
+    paths[-1] = paths[-1].removesuffix('.json')
+    if paths[-1] == '':
+        paths.pop()
+    if paths:
+        if len(paths) > 1: 
+            path_dict = create_projection(paths[1])
+            resp = db.jobs.insert_one({'_id': paths[0]}, {'$set': path_dict})
+        else:
+            resp = db.jobs.insert_one({'_id': paths[0]}, {'$set': request.json})
+    else: 
+        return 'Error: No path specified'
+    if resp.modified_count > 0: # checks if at least one document was modified by the update operation
+        return 'Data updated successfully'
+    else:
+        return 'Error: Failed to update data'
+    
+
+@app.route('/', defaults={'myPath': ''}, methods=['PATCH'])
+@app.route('/<path:myPath>', methods=['PATCH'])
+def patch_data(myPath):
+    app.json.sort_keys = True
+    paths = myPath.split('/')
+    if not paths[-1].endswith('.json'): 
+        return ''
+    paths[-1] = paths[-1].removesuffix('.json')
+    if paths[-1] == '':
+        paths.pop()
+    if paths:
+        if len(paths) > 1: 
+            path_dict = create_projection(paths[1])
+            resp = db.jobs.update_one({'_id': paths[0]}, {'$set': path_dict})
+        else:
+            # data = request.get_json()
+            # resp = db.jobs.update_one({'_id': paths[0]}, {'$set': data})
+
+            resp = db.jobs.update_one({'_id': paths[0]}, {'$set': request.json})       
+    else: 
+        return 'Error: No path specified'
+    if resp.modified_count > 0:
+        return 'Data updated successfully'
+    else:
+        return 'Error: Failed to update data'
+
+
+
 if __name__ == '__main__':
     client = MongoClient()
     db = client.project
