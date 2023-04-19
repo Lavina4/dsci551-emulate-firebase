@@ -6,6 +6,18 @@ from itertools import islice
 
 app = Flask(__name__)
 
+def check_index(key):
+    key = key.strip('"\'')
+    indexes = db.jobs.index_information()
+    flag = False
+    for index in indexes:
+        index_key = indexes[index]['key'][0][0]
+        if key == index_key:
+            flag = True
+            break
+    if not flag:
+        db.jobs.create_index(key)
+
 def create_projection(path):
     return {path: 1}
 
@@ -56,7 +68,7 @@ def sort_order(response):
         final[o] = objects[o]
     return final
 
-def get_orderBy(orderBy, response):
+def get_orderBy(orderBy, response, key):
     app.json.sort_keys = False
     if orderBy == '"$key"' or orderBy == "'$key'":
         temp_dict = list(response)
@@ -65,6 +77,8 @@ def get_orderBy(orderBy, response):
             objects.append(OrderedDict(json.loads(json.dumps(t, sort_keys=True))))
         return objects, temp_dict
     elif orderBy == '"$value"' or orderBy == "'$value'":
+        if key:
+            check_index(key)
         temp_res = list(response)
         if len(temp_res) > 1:
             return None, temp_res
@@ -79,14 +93,15 @@ def get_orderBy(orderBy, response):
             response = sort_order(res)
         else:
             response = res
-        # response = sort_order(res[path]) if path else sort_order(res)
         if isinstance(response, OrderedDict):
             response = OrderedDict([(path,response)]) if path else response
         else:
             response = OrderedDict([(path,response[path])]) if path else response
         return [response], [res]
     else: ## order by child
-        order_by = '.'.join(orderBy.split('/'))
+        order_by = orderBy.split('/')
+        check_index(order_by[-1])
+        order_by = '.'.join(order_by)
         res = response.sort(order_by.strip('"'))
         return list(res), response
 
@@ -243,7 +258,7 @@ def limitToFirst_check(limitToFirst, sorted_order):
 
 def check_filter_options(orderBy, limitToFirst, limitToLast, startAt, endAt, equalTo, resp, key=None):
     if orderBy:
-        sorted_order, res = get_orderBy(orderBy, resp)
+        sorted_order, res = get_orderBy(orderBy, resp, key)
         if limitToFirst and limitToLast:
             return [{"error" : "orderBy must be a valid JSON encoded path"}]
         if (startAt or endAt) and equalTo:
