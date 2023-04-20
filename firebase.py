@@ -1,10 +1,14 @@
+from time import sleep
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from collections import OrderedDict
 import numbers, json
 from itertools import islice
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
+socketio = SocketIO(app)
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 
 def check_index(key):
     key = key.strip('"\'')
@@ -279,8 +283,9 @@ def check_filter_options(orderBy, limitToFirst, limitToLast, startAt, endAt, equ
     return resp
 
 @app.route('/', defaults={'myPath': ''})
-@app.route('/<path:myPath>', methods=['GET'])
+@app.route('/<path:myPath>', methods=['GET', 'POST'])
 def catch_all_get(myPath):
+    # emit('my response', {'data': 'Connected'})
     app.json.sort_keys = True
     limitToFirst = request.args.get('limitToFirst', default=None, type=int)
     limitToLast = request.args.get('limitToLast', default=None, type=int)
@@ -319,7 +324,12 @@ def catch_all_get(myPath):
         resp = None
     return jsonify(resp) ## sorts the returned json on keys: this is same as the default behaviour of Firebase
 
+@socketio.on('connect')
+def connect(auth):
+    emit('my response', {'data': 'Hi'})
+    emit('my response', {'data': 'Connected'})
+
 if __name__ == '__main__':
     client = MongoClient()
     db = client.project
-    app.run(debug=True)
+    socketio.run(app)
