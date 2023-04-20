@@ -1,4 +1,3 @@
-from time import sleep
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from collections import OrderedDict
