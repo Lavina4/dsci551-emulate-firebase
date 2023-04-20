@@ -369,6 +369,27 @@ def patch_data(myPath):
     else:
         return 'Error: Failed to update data'
 
+@app.route('/', defaults={'myPath': ''}, methods=['DELETE'])
+@app.route('/<path:myPath>', methods=['DELETE'])
+def delete_data(myPath):
+    paths = myPath.split('/')
+    if not paths[-1].endswith('.json'): 
+        return ''
+    paths[-1] = paths[-1].removesuffix('.json')
+    if paths[-1] == '':
+        paths.pop()
+    if paths:
+        if len(paths) > 1: 
+            path_dict = create_projection(paths[1])
+            resp = db.jobs.update_one({'_id': paths[0]}, {'$unset': path_dict})
+        else:
+            resp = db.jobs.delete_one({'_id': paths[0]})
+    else: 
+        return 'Error: No path specified'
+    if resp.modified_count > 0: # checks if at least one document was modified by the update operation
+        return 'Data deleted successfully'
+    else:
+        return 'Error: Failed to delete data'
 
 
 if __name__ == '__main__':
