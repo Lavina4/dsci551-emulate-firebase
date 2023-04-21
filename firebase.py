@@ -282,9 +282,8 @@ def check_filter_options(orderBy, limitToFirst, limitToLast, startAt, endAt, equ
     return resp
 
 @app.route('/', defaults={'myPath': ''})
-@app.route('/<path:myPath>', methods=['GET', 'POST'])
+@app.route('/<path:myPath>', methods=['GET'])
 def catch_all_get(myPath):
-    # emit('my response', {'data': 'Connected'})
     app.json.sort_keys = True
     limitToFirst = request.args.get('limitToFirst', default=None, type=int)
     limitToLast = request.args.get('limitToLast', default=None, type=int)
@@ -293,6 +292,7 @@ def catch_all_get(myPath):
     orderBy = request.args.get('orderBy')
     equalTo = request.args.get('equalTo')
     paths = myPath.split('/')
+    socketio.emit('my data', {'data': 'Lavina'}, namespace='/')
     if not paths[-1].endswith('.json'): ## if no .json at the end of url return empty
         return ''
     paths[-1] = paths[-1].removesuffix('.json')
@@ -323,7 +323,7 @@ def catch_all_get(myPath):
         resp = None
     return jsonify(resp) ## sorts the returned json on keys: this is same as the default behaviour of Firebase
 
-@app.route('/', defaults={'myPath': ''}, methods=['PUT'])
+@app.route('/', defaults={'myPath': ''}, )
 @app.route('/<path:myPath>', methods=['PUT'])
 def put_data(myPath):
     app.json.sort_keys = True
@@ -341,7 +341,8 @@ def put_data(myPath):
             resp = db.jobs.insert_one({'_id': paths[0]}, {'$set': request.json})
     else:
         return 'Error: No path specified'
-    if resp.modified_count > 0: # checks if at least one document was modified by the update operation
+    if resp.inserted_id: # checks if at least one document was modified by the update operation
+        socketio.emit('my data', request.json, namespace='/')
         return 'Data updated successfully'
     else:
         return 'Error: Failed to update data'
@@ -397,8 +398,12 @@ def delete_data(myPath):
 
 @socketio.on('connect')
 def connect(auth):
-    emit('my response', {'data': 'Hi'})
-    emit('my response', {'data': 'Connected'})
+    emit('my data', {'data': 'Connected'})
+
+# @socketio.on('my event')
+# def my_event():
+#     print('my_event')
+#     emit('my data', {'data': 'You'})
 
 if __name__ == '__main__':
     client = MongoClient()
