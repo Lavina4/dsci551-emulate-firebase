@@ -86,6 +86,8 @@ def get_orderBy(orderBy, response, key):
         if len(temp_res) > 1:
             return None, temp_res
         res = temp_res[0]
+        if '_id' in res:
+            res = {i: res[i] for i in res if i != '_id'}
         path = list(res.keys())[0] if len(res.keys()) == 1 else None
         if path:
             if isinstance(res[path], dict) or isinstance(res[path], OrderedDict):
@@ -111,18 +113,21 @@ def get_orderBy(orderBy, response, key):
 def startAt_endAt_key(startAt, endAt, r, key, dict_record):
     if not key: ## /.json case
         if startAt and endAt:
-            if startAt.isnumeric() and endAt.isnumeric():
-                if int(r['_id']) >= int(startAt) and int(r['_id']) <= int(endAt): dict_record[r['_id']] = r
+            if not isinstance(startAt, int) and not isinstance(endAt, int):
+                if startAt.isnumeric() and endAt.isnumeric():
+                    if int(r['_id']) >= int(startAt) and int(r['_id']) <= int(endAt): dict_record[r['_id']] = r
             else:
                 if r['_id'] >= startAt and r['_id'] <= endAt: dict_record[r['_id']] = r
         elif startAt:
-            if startAt.isnumeric():
-                if int(r['_id']) >= int(startAt): dict_record[r['_id']] = r
+            if not isinstance(startAt, int):
+                if startAt.isnumeric():
+                    if int(r['_id']) >= int(startAt): dict_record[r['_id']] = r
             else:
                 if r['_id'] >= startAt: dict_record[r['_id']] = r
         else:
-            if endAt.isnumeric():
-                if int(r['_id']) <= int(endAt): dict_record[r['_id']] = r
+            if not isinstance(endAt, int):
+                if endAt.isnumeric():
+                    if int(r['_id']) <= int(endAt): dict_record[r['_id']] = r
             else:
                 if r['_id'] <= endAt: dict_record[r['_id']] = r
     else:
@@ -137,12 +142,20 @@ def startAt_endAt_key(startAt, endAt, r, key, dict_record):
 
 def startAt_endAt_check(startAt, endAt, orderBy, response, key):
     orderBy = orderBy.strip('"\'')
+    orderBy = orderBy.split('/')
+    if len(orderBy) == 1:
+        orderBy = orderBy[0]
     startAt = startAt.strip('"\'') if startAt else None
     endAt = endAt.strip('"\'') if endAt else None
-    startAt = startAt.strip('"\'') if startAt and startAt.isnumeric() else startAt
-    endAt = endAt.strip('"\'') if endAt and endAt.isnumeric() else endAt
+    if startAt and not isinstance(startAt, int):
+        if startAt.isnumeric():
+            startAt = int(startAt)
+    if endAt and not isinstance(endAt, int):
+        if endAt.isnumeric():
+            endAt = int(endAt)
     startAt_record = []
     for r in response:
+        r_copy  = r.copy()
         dict_record = {}
         if orderBy == '$key' or orderBy == '$value':
             if orderBy == '$key':
@@ -158,21 +171,27 @@ def startAt_endAt_check(startAt, endAt, orderBy, response, key):
                         endAt = endAt.strip('"\'')
                         if r[d] <= endAt: dict_record[d] = r[d]
         else:
-            if orderBy in r:
-                if not key: ## ./json case
-                    if startAt and endAt:
-                        if r[orderBy] >= startAt and r[orderBy] <= endAt: dict_record = r
-                    elif startAt:
-                        if r[orderBy] >= startAt: dict_record = r
+            orderBy = orderBy if isinstance(orderBy, list) else [orderBy]
+            for i, o in enumerate(orderBy):
+                if o in r:
+                    if i == len(orderBy) - 1:
+                        if not key: ## ./json case
+                            if startAt and endAt:
+                                if r[o] >= startAt and r[o] <= endAt: dict_record = r_copy
+                            elif startAt:
+                                # print(startAt)
+                                if r[o] >= startAt: dict_record = r_copy
+                            else:
+                                if r[o] <= endAt: dict_record = r_copy
+                        else:
+                            if startAt and endAt:
+                                if r[o] >= startAt and r[o] <= endAt: dict_record[o] = r[o]
+                            elif startAt:
+                                if r[o] >= startAt: dict_record[o] = r[o]
+                            else:
+                                if r[o] <= endAt: dict_record[o] = r[o]
                     else:
-                        if r[orderBy] <= endAt: dict_record = r
-                else:
-                    if startAt and endAt:
-                        if r[orderBy] >= startAt and r[orderBy] <= endAt: dict_record[orderBy] = r[orderBy]
-                    elif startAt:
-                        if r[orderBy] >= startAt: dict_record[orderBy] = r[orderBy]
-                    else:
-                        if r[orderBy] <= endAt: dict_record[orderBy] = r[orderBy]
+                        r = r[o]
         if dict_record: startAt_record.append(dict_record)
     return startAt_record
 
@@ -301,9 +320,9 @@ def catch_all_get(myPath):
     if paths:
         if len(paths) > 1: ## if paths is longer than 1 then projection is required to select specific data
             path_dict = create_projection(paths[1])
-            resp = db.jobs.find({'_id': paths[0]}, path_dict)
+            resp = db.jobs.find({'_id': int(paths[0])}, path_dict) if paths[0].isnumeric() else db.jobs.find({'_id': paths[0]}, path_dict)
         else:
-            resp = db.jobs.find({'_id': paths[0]})
+            resp = db.jobs.find({'_id': int(paths[0])}) if paths[0].isnumeric() else db.jobs.find({'_id': paths[0]})
     else: ## empty indicates all the records have to be returned
         resp = db.jobs.find({}).sort('_id')
     if paths:
@@ -342,7 +361,6 @@ def put_data(myPath):
     else:
         return 'Error: No path specified'
     if resp.inserted_id: # checks if at least one document was modified by the update operation
-        socketio.emit('my data', request.json, namespace='/')
         return 'Data updated successfully'
     else:
         return 'Error: Failed to update data'
@@ -361,15 +379,18 @@ def patch_data(myPath):
     if paths:
         if len(paths) > 1:
             path_dict = create_projection(paths[1])
-            resp = db.jobs.update_one({'_id': paths[0]}, {'$set': path_dict})
+            resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': path_dict}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': path_dict})
         else:
             # data = request.get_json()
             # resp = db.jobs.update_one({'_id': paths[0]}, {'$set': data})
 
-            resp = db.jobs.update_one({'_id': paths[0]}, {'$set': request.json})
+            resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': request.json}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': request.json})
     else:
         return 'Error: No path specified'
     if resp.modified_count > 0:
+        request_info = request.json
+        request_info['_id'] = paths[0]
+        socketio.emit('updated company info', request.json, namespace='/')
         return 'Data updated successfully'
     else:
         return 'Error: Failed to update data'
@@ -398,12 +419,7 @@ def delete_data(myPath):
 
 @socketio.on('connect')
 def connect(auth):
-    emit('my data', {'data': 'Connected'})
-
-# @socketio.on('my event')
-# def my_event():
-#     print('my_event')
-#     emit('my data', {'data': 'You'})
+    print('connected')
 
 if __name__ == '__main__':
     client = MongoClient()
