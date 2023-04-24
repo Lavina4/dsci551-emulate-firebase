@@ -3,7 +3,9 @@ from pymongo import MongoClient
 from collections import OrderedDict
 import numbers, json
 from itertools import islice
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
+import uuid
+
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -394,6 +396,31 @@ def patch_data(myPath):
         return 'Data updated successfully'
     else:
         return 'Error: Failed to update data'
+
+
+@app.route('/', defaults={'myPath': ''}, methods=['POST'])
+@app.route('/<path:myPath>', methods=['POST'])
+def put_data(myPath):
+    app.json.sort_keys = True
+    paths = myPath.split('/')
+    if not paths[-1].endswith('.json'):
+        return ''
+    paths[-1] = paths[-1].removesuffix('.json')
+    if paths[-1] == '':
+        paths.pop()
+    if paths:
+        if len(paths) > 1:
+            path_dict = create_projection(paths[1])
+            resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': path_dict})
+        else:
+            resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': request.json})
+    else:
+        return 'Error: No path specified'
+    if resp.modified_count > 0: # checks if at least one document was modified by the update operation
+        return 'Data updated successfully'
+    else:
+        return 'Error: Failed to update data'
+
 
 @app.route('/', defaults={'myPath': ''}, methods=['DELETE'])
 @app.route('/<path:myPath>', methods=['DELETE'])
