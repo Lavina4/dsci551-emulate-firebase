@@ -400,7 +400,7 @@ def patch_data(myPath):
 
 @app.route('/', defaults={'myPath': ''}, methods=['POST'])
 @app.route('/<path:myPath>', methods=['POST'])
-def put_data(myPath):
+def post_data(myPath):
     app.json.sort_keys = True
     paths = myPath.split('/')
     if not paths[-1].endswith('.json'):
