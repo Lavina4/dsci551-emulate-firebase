@@ -93,15 +93,18 @@ def create_company_view(jobs_desc, new_loc=True):
     if not isinstance(jobs_desc, list):
         jobs_desc = [jobs_desc]
     companies_info = {}
+    print(jobs_desc)
     for val in jobs_desc:
         if 'jobs' in val:
             if selected_locations:
                 if 'locations' in val:
                     if selected_type in val['jobs'] and set(selected_locations).intersection(set(val['locations'])):
-                        companies_info[val['company_name']] = {key: val[key] for key in val.keys() & {'headline', 'website', 'about', 'locations'}}
+                        if 'company_name' in val:
+                            companies_info[val['company_name']] = {key: val[key] for key in val.keys() & {'headline', 'website', 'about', 'locations'}}
             else:
                 if selected_type in val['jobs']:
-                    companies_info[val['company_name']] = {key: val[key] for key in val.keys() & {'headline', 'website', 'about', 'locations'}}
+                    if 'company_name' in val:
+                        companies_info[val['company_name']] = {key: val[key] for key in val.keys() & {'headline', 'website', 'about', 'locations'}}
     companies_info = OrderedDict(sorted(companies_info.items()))
     with cols[1]:
         with placeholder.container():

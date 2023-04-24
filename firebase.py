@@ -355,13 +355,22 @@ def put_data(myPath):
     if paths[-1] == '':
         paths.pop()
     if paths:
-        if len(paths) > 1:
-            path_dict = create_projection(paths[1])
-            resp = db.jobs.insert_one({'_id': paths[0]}, {'$set': path_dict})
-        else:
-            resp = db.jobs.insert_one({'_id': paths[0]}, {'$set': request.json})
+        data_request = request.json
+        data_request['_id'] = int(paths[0]) if paths[0].isnumeric() else paths[0]
+        resp = db.jobs.insert_one(data_request)
+        # if len(paths) > 1:
+            # path_dict = create_projection(paths[1])
+            # resp = db.jobs.insert_one({'_id': int(paths[0])}, {'$set': path_dict}) if paths[0].isnumeric() else db.jobs.insert_one({'_id': paths[0]}, {'$set': path_dict})
+        # else:
+            # print('inside')
+            # resp = db.jobs.insert_one({'_id': int(paths[0])}, {'$set': request.json}) if paths[0].isnumeric() else db.jobs.insert_one({'_id': paths[0]}, {'$set': request.json})
     else:
-        return 'Error: No path specified'
+        data_request = request.json
+        id = list(data_request.keys())[0]
+        data_request['_id'] = int(id) if id.isnumeric() else id
+        resp = db.jobs.insert_one(data_request)
+        # data_request['_id'] = int(paths[0]) if paths[0].isnumeric() else paths[0]
+        # return 'Error: No path specified'
     if resp.inserted_id: # checks if at least one document was modified by the update operation
         return 'Data updated successfully'
     else:
@@ -379,13 +388,24 @@ def patch_data(myPath):
     if paths[-1] == '':
         paths.pop()
     if paths:
-        if len(paths) > 1:
-            path_dict = create_projection(paths[1])
-            resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': path_dict}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': path_dict})
+        data = request.json
+        k = list(data.keys())[0]
+        if isinstance(data[k], dict):
+            i = list(data[k].keys())[0]
+            if not isinstance(data[k][i], dict):
+                update_string = k + '.' + i
+                req_data= {}
+                req_data[update_string] = data[k][i]
+                resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': req_data}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': req_data})
+            else:
+                resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': request.json}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': request.json})
         else:
-            # data = request.get_json()
-            # resp = db.jobs.update_one({'_id': paths[0]}, {'$set': data})
-
+        # if len(paths) > 1:
+        #     path_dict = create_projection(paths[1])
+        #     resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': path_dict}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': path_dict})
+        # else:
+        #     # data = request.get_json()
+        #     # resp = db.jobs.update_one({'_id': paths[0]}, {'$set': data})
             resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': request.json}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': request.json})
     else:
         return 'Error: No path specified'
@@ -408,15 +428,21 @@ def post_data(myPath):
     paths[-1] = paths[-1].removesuffix('.json')
     if paths[-1] == '':
         paths.pop()
-    if paths:
-        if len(paths) > 1:
-            path_dict = create_projection(paths[1])
-            resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': path_dict})
-        else:
-            resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': request.json})
-    else:
-        return 'Error: No path specified'
-    if resp.modified_count > 0: # checks if at least one document was modified by the update operation
+    # if paths:
+    #     if len(paths) > 1:
+    #         path_dict = create_projection(paths[1])
+    #         resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': path_dict})
+    #     else:
+    #         resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': request.json})
+    # if paths:
+    data_request = request.json
+    data_request['_id'] = str(uuid.uuid4())
+    resp = db.jobs.insert_one(data_request)
+        # data_request['_id'] = int(paths[0]) if paths[0].isnumeric() else paths[0]
+        # return 'Error: No path specified'
+    # else:
+    #     return 'Error: No path specified'
+    if resp.inserted_id: # checks if at least one document was modified by the update operation
         return 'Data updated successfully'
     else:
         return 'Error: Failed to update data'
@@ -434,9 +460,9 @@ def delete_data(myPath):
     if paths:
         if len(paths) > 1:
             path_dict = create_projection(paths[1])
-            resp = db.jobs.update_one({'_id': paths[0]}, {'$unset': path_dict})
+            resp = db.jobs.update_one({'_id': int(paths[0])}, {'$unset': path_dict}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$unset': path_dict})
         else:
-            resp = db.jobs.delete_one({'_id': paths[0]})
+            resp = db.jobs.delete_one({'_id': int(paths[0])}) if paths[0].isnumeric() else db.jobs.delete_one({'_id': paths[0]})
     else:
         return 'Error: No path specified'
     if resp.modified_count > 0: # checks if at least one document was modified by the update operation
