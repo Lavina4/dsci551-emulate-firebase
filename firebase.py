@@ -329,7 +329,6 @@ def catch_all_get(myPath):
     orderBy = request.args.get('orderBy')
     equalTo = request.args.get('equalTo')
     paths = myPath.split('/')
-    socketio.emit('my data', {'data': 'Lavina'}, namespace='/')
     if not paths[-1].endswith('.json'): ## if no .json at the end of url return empty
         return ''
     paths[-1] = paths[-1].removesuffix('.json')
@@ -364,7 +363,6 @@ def catch_all_get(myPath):
 @app.route('/', defaults={'myPath': ''}, )
 @app.route('/<path:myPath>', methods=['PUT'])
 def put_data(myPath):
-    app.json.sort_keys = True
     paths = myPath.split('/')
     if not paths[-1].endswith('.json'):
         return ''
@@ -389,7 +387,6 @@ def put_data(myPath):
 @app.route('/', defaults={'myPath': ''}, methods=['PATCH'])
 @app.route('/<path:myPath>', methods=['PATCH'])
 def patch_data(myPath):
-    app.json.sort_keys = True
     paths = myPath.split('/')
     if not paths[-1].endswith('.json'):
         return ''
@@ -424,7 +421,6 @@ def patch_data(myPath):
 @app.route('/', defaults={'myPath': ''}, methods=['POST'])
 @app.route('/<path:myPath>', methods=['POST'])
 def post_data(myPath):
-    app.json.sort_keys = True
     paths = myPath.split('/')
     if not paths[-1].endswith('.json'):
         return ''
