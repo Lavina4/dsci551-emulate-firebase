@@ -1,3 +1,10 @@
+"""
+python: 3.11.0
+flask: 2.2.3
+flask_socketio: 5.3.3
+pymongo: 4.3.3
+"""
+
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from collections import OrderedDict
@@ -31,6 +38,8 @@ def get_response(res_dict, paths):
         res_dict = res_dict[path]
     return res_dict
 
+
+## Sorting the groupBy data
 def sort_order(response):
     nulls = {}
     bools_true = {}
@@ -73,6 +82,7 @@ def sort_order(response):
         final[o] = objects[o]
     return final
 
+## ordering the data on $key / $value / child
 def get_orderBy(orderBy, response, key):
     app.json.sort_keys = False
     if orderBy == '"$key"' or orderBy == "'$key'":
@@ -112,6 +122,7 @@ def get_orderBy(orderBy, response, key):
         res = response.sort(order_by.strip('"'))
         return list(res), response
 
+## startAt and endAt for $key
 def startAt_endAt_key(startAt, endAt, r, key, dict_record):
     if not key: ## /.json case
         if startAt and endAt:
@@ -142,6 +153,7 @@ def startAt_endAt_key(startAt, endAt, r, key, dict_record):
                 if d <= endAt: dict_record[d] = r[d]
     return dict_record
 
+## startAt and endAt filtering
 def startAt_endAt_check(startAt, endAt, orderBy, response, key):
     orderBy = orderBy.strip('"\'')
     orderBy = orderBy.split('/')
@@ -181,7 +193,6 @@ def startAt_endAt_check(startAt, endAt, orderBy, response, key):
                             if startAt and endAt:
                                 if r[o] >= startAt and r[o] <= endAt: dict_record = r_copy
                             elif startAt:
-                                # print(startAt)
                                 if r[o] >= startAt: dict_record = r_copy
                             else:
                                 if r[o] <= endAt: dict_record = r_copy
@@ -197,6 +208,7 @@ def startAt_endAt_check(startAt, endAt, orderBy, response, key):
         if dict_record: startAt_record.append(dict_record)
     return startAt_record
 
+## equalTo filtering
 def equalTo_check(equalTo, orderBy, response, key=None):
     equalTo = equalTo.strip('"\'')
     orderBy = orderBy.strip('"\'')
@@ -228,6 +240,7 @@ def equalTo_check(equalTo, orderBy, response, key=None):
         if dict_record: equalTo_record.append(dict_record)
     return equalTo_record
 
+## limitTo last filttering
 def limitToLast_check(limitToLast, sorted_order):
     if len(sorted_order) == 1:
         items = sorted_order[0]
@@ -254,6 +267,7 @@ def limitToLast_check(limitToLast, sorted_order):
         sorted_order = sorted_order[len(sorted_order)-limitToLast:]
     return sorted_order
 
+## limitToFirst filtering
 def limitToFirst_check(limitToFirst, sorted_order):
     if len(sorted_order) == 1:
         items = sorted_order[0]
@@ -280,6 +294,7 @@ def limitToFirst_check(limitToFirst, sorted_order):
         sorted_order = sorted_order[:limitToFirst]
     return sorted_order
 
+## checking the filtering options and calling appropriate functions
 def check_filter_options(orderBy, limitToFirst, limitToLast, startAt, endAt, equalTo, resp, key=None):
     if orderBy:
         sorted_order, res = get_orderBy(orderBy, resp, key)
@@ -302,6 +317,7 @@ def check_filter_options(orderBy, limitToFirst, limitToLast, startAt, endAt, equ
         return [{"error" : "orderBy must be defined when other query parameters are defined"}]
     return resp
 
+## handling GET request
 @app.route('/', defaults={'myPath': ''})
 @app.route('/<path:myPath>', methods=['GET'])
 def catch_all_get(myPath):
@@ -344,6 +360,7 @@ def catch_all_get(myPath):
         resp = None
     return jsonify(resp) ## sorts the returned json on keys: this is same as the default behaviour of Firebase
 
+## handling PUT request
 @app.route('/', defaults={'myPath': ''}, )
 @app.route('/<path:myPath>', methods=['PUT'])
 def put_data(myPath):
@@ -358,25 +375,17 @@ def put_data(myPath):
         data_request = request.json
         data_request['_id'] = int(paths[0]) if paths[0].isnumeric() else paths[0]
         resp = db.jobs.insert_one(data_request)
-        # if len(paths) > 1:
-            # path_dict = create_projection(paths[1])
-            # resp = db.jobs.insert_one({'_id': int(paths[0])}, {'$set': path_dict}) if paths[0].isnumeric() else db.jobs.insert_one({'_id': paths[0]}, {'$set': path_dict})
-        # else:
-            # print('inside')
-            # resp = db.jobs.insert_one({'_id': int(paths[0])}, {'$set': request.json}) if paths[0].isnumeric() else db.jobs.insert_one({'_id': paths[0]}, {'$set': request.json})
     else:
         data_request = request.json
         id = list(data_request.keys())[0]
         data_request['_id'] = int(id) if id.isnumeric() else id
         resp = db.jobs.insert_one(data_request)
-        # data_request['_id'] = int(paths[0]) if paths[0].isnumeric() else paths[0]
-        # return 'Error: No path specified'
     if resp.inserted_id: # checks if at least one document was modified by the update operation
         return 'Data updated successfully'
     else:
         return 'Error: Failed to update data'
 
-
+## handling PATCH request
 @app.route('/', defaults={'myPath': ''}, methods=['PATCH'])
 @app.route('/<path:myPath>', methods=['PATCH'])
 def patch_data(myPath):
@@ -400,12 +409,6 @@ def patch_data(myPath):
             else:
                 resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': request.json}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': request.json})
         else:
-        # if len(paths) > 1:
-        #     path_dict = create_projection(paths[1])
-        #     resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': path_dict}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': path_dict})
-        # else:
-        #     # data = request.get_json()
-        #     # resp = db.jobs.update_one({'_id': paths[0]}, {'$set': data})
             resp = db.jobs.update_one({'_id': int(paths[0])}, {'$set': request.json}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$set': request.json})
     else:
         return 'Error: No path specified'
@@ -417,7 +420,7 @@ def patch_data(myPath):
     else:
         return 'Error: Failed to update data'
 
-
+## handling POST request
 @app.route('/', defaults={'myPath': ''}, methods=['POST'])
 @app.route('/<path:myPath>', methods=['POST'])
 def post_data(myPath):
@@ -428,26 +431,15 @@ def post_data(myPath):
     paths[-1] = paths[-1].removesuffix('.json')
     if paths[-1] == '':
         paths.pop()
-    # if paths:
-    #     if len(paths) > 1:
-    #         path_dict = create_projection(paths[1])
-    #         resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': path_dict})
-    #     else:
-    #         resp = db.jobs.insert_one({'_id': str(uuid.uuid4())}, {'$set': request.json})
-    # if paths:
     data_request = request.json
     data_request['_id'] = str(uuid.uuid4())
     resp = db.jobs.insert_one(data_request)
-        # data_request['_id'] = int(paths[0]) if paths[0].isnumeric() else paths[0]
-        # return 'Error: No path specified'
-    # else:
-    #     return 'Error: No path specified'
-    if resp.inserted_id: # checks if at least one document was modified by the update operation
+    if resp.inserted_id: # checks if document was inserted by the insert operation
         return 'Data updated successfully'
     else:
         return 'Error: Failed to update data'
 
-
+## handling DELETE request
 @app.route('/', defaults={'myPath': ''}, methods=['DELETE'])
 @app.route('/<path:myPath>', methods=['DELETE'])
 def delete_data(myPath):
@@ -461,14 +453,16 @@ def delete_data(myPath):
         if len(paths) > 1:
             path_dict = create_projection(paths[1])
             resp = db.jobs.update_one({'_id': int(paths[0])}, {'$unset': path_dict}) if paths[0].isnumeric() else db.jobs.update_one({'_id': paths[0]}, {'$unset': path_dict})
+            if resp.modified_count > 0: # checks if at least one document was modified by the update operation
+                return 'Data deleted successfully'
+            return 'Error: Failed to delete data'
         else:
             resp = db.jobs.delete_one({'_id': int(paths[0])}) if paths[0].isnumeric() else db.jobs.delete_one({'_id': paths[0]})
+            if resp.deleted_count > 0:
+                return 'Data deleted successfully'
+            return 'Error: Failed to delete data'
     else:
         return 'Error: No path specified'
-    if resp.modified_count > 0: # checks if at least one document was modified by the update operation
-        return 'Data deleted successfully'
-    else:
-        return 'Error: Failed to delete data'
 
 @socketio.on('connect')
 def connect(auth):

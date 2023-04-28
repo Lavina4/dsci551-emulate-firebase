@@ -1,5 +1,9 @@
+"""
+streamlit: 1.21.0
+"""
+
 from collections import OrderedDict
-import requests, socketio, asyncio,aiohttp
+import requests, socketio, asyncio
 import streamlit as st
 import uuid
 
@@ -93,7 +97,6 @@ def create_company_view(jobs_desc, new_loc=True):
     if not isinstance(jobs_desc, list):
         jobs_desc = [jobs_desc]
     companies_info = {}
-    print(jobs_desc)
     for val in jobs_desc:
         if 'jobs' in val:
             if selected_locations:
@@ -125,28 +128,26 @@ if jobs_info:
     jobs_info = create_company_view(jobs_info)
 
 async def run_socketio(url='http://127.0.0.1:5000'):
-    async with aiohttp.ClientSession() as session:
-        sio = socketio.AsyncClient()
-        @sio.event
-        def connect():
-            print('connection established')
+    sio = socketio.AsyncClient()
+    @sio.event
+    def connect():
+        print('connection established')
 
-        @sio.event
-        def disconnect():
-            print('disconnected from server')
+    @sio.event
+    def disconnect():
+        print('disconnected from server')
 
-        @sio.on('updated company info')
-        def on_update(data):
-            print('Price Data ', data)
-            update_company(data)
+    @sio.on('updated company info')
+    def on_update(data):
+        update_company(data)
 
-        def update_company(data):
-            jobs_info = requests.get('http://127.0.0.1:5000/.json?orderBy=%22jobs/' + selected_type +'%22' + '&startAt=' + str(number))
-            jobs_info = jobs_info.json()
-            create_company_view(jobs_info, new_loc=False)
+    def update_company(data):
+        jobs_info = requests.get('http://127.0.0.1:5000/.json?orderBy=%22jobs/' + selected_type +'%22' + '&startAt=' + str(number))
+        jobs_info = jobs_info.json()
+        create_company_view(jobs_info, new_loc=False)
 
-        await sio.connect(url)
-        await sio.wait()
+    await sio.connect(url)
+    await sio.wait()
 
 if __name__ == '__main__':
     asyncio.run(run_socketio())
