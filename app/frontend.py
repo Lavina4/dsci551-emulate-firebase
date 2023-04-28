@@ -1,4 +1,5 @@
 """
+python: 3.11.0
 streamlit: 1.21.0
 """
 
