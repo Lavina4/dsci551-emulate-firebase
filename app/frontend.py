@@ -64,12 +64,14 @@ def paginator(label, items, items_per_page=10, on_sidebar=True, new_loc=True):
     import itertools
     return itertools.islice(enumerate(items), min_index, max_index)
 
+## GET the jobs from the Flask server ordered on key 'jobs'
 jobs = requests.get('http://127.0.0.1:5000/.json?orderBy=%22$key%22&equalTo="jobs"')
 jobs = jobs.json()
 jobs_list = []
 for job in jobs:
     jobs_list.extend(job['jobs'].keys())
 
+## get the data ordered on key 'locations'
 location = requests.get('http://127.0.0.1:5000/.json?orderBy=%22$key%22&equalTo="locations"')
 location = location.json()
 location_list = []
@@ -93,6 +95,7 @@ with cols[1]:
 jobs_info = requests.get('http://127.0.0.1:5000/.json?orderBy=%22jobs/' + selected_type +'%22' + '&startAt=' + str(number))
 jobs_info = jobs_info.json()
 
+## creating the view for display of company name and details
 def create_company_view(jobs_desc, new_loc=True):
     if not isinstance(jobs_desc, list):
         jobs_desc = [jobs_desc]
@@ -137,6 +140,7 @@ async def run_socketio(url='http://127.0.0.1:5000'):
     def disconnect():
         print('disconnected from server')
 
+    ## receives the event from client and updates the company info
     @sio.on('updated company info')
     def on_update(data):
         update_company(data)
